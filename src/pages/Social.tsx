@@ -6,8 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Profile } from '@/types/database';
 
 export default function Social() {
@@ -63,6 +64,14 @@ export default function Social() {
       <div className="container max-w-lg mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">Social</h1>
         
+        <Alert className="mb-6">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Em Desenvolvimento</AlertTitle>
+          <AlertDescription>
+            Esta área está sendo aprimorada. Novas funcionalidades de interação chegarão em breve!
+          </AlertDescription>
+        </Alert>
+
         <Tabs defaultValue="friends">
           <TabsList className="w-full grid grid-cols-2 mb-4">
             <TabsTrigger value="friends">Amigos ({friends.length})</TabsTrigger>
