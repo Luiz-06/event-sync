@@ -1,26 +1,4 @@
--- =====================================================
--- EventSync - Schema Completo para Supabase
--- Versão: 2.0
--- Data: 2025-12-12
--- =====================================================
--- 
--- INSTRUÇÕES DE USO:
--- 1. Crie um novo projeto no Supabase (https://supabase.com)
--- 2. Vá em "SQL Editor" no menu lateral
--- 3. Clique em "New Query"
--- 4. Cole TODO este conteúdo e clique em "Run"
--- 5. Vá em "Authentication" > "Providers" e habilite "Email"
--- 6. Desabilite "Confirm email" em Auth > Settings para testes
--- 7. Copie sua URL e Anon Key do projeto
---
--- =====================================================
-
--- Habilitar extensões necessárias
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
--- =====================================================
--- ENUMS (Tipos personalizados)
--- =====================================================
 
 DO $$ BEGIN
   CREATE TYPE public.app_role AS ENUM ('user', 'organizer');
@@ -340,7 +318,6 @@ BEGIN
 END;
 $$;
 
--- Remover trigger antigo se existir e criar novo
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
@@ -364,10 +341,6 @@ AS $$
   WHERE e.organizer_id = organizer_uuid
 $$;
 
--- =====================================================
--- ÍNDICES para performance
--- =====================================================
-
 CREATE INDEX IF NOT EXISTS idx_events_organizer ON public.events(organizer_id);
 CREATE INDEX IF NOT EXISTS idx_events_status ON public.events(status);
 CREATE INDEX IF NOT EXISTS idx_events_start_date ON public.events(start_date);
@@ -382,7 +355,3 @@ CREATE INDEX IF NOT EXISTS idx_messages_receiver ON public.messages(receiver_id)
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON public.notifications(read);
 CREATE INDEX IF NOT EXISTS idx_reviews_event ON public.reviews(event_id);
-
--- =====================================================
--- FIM DO SCHEMA - Execute este script no SQL Editor
--- =====================================================
