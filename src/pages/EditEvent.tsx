@@ -96,7 +96,7 @@ export default function EditEvent() {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Evento atualizado!' });
-      navigate(`/event/${event.id}`);
+      navigate(`/events/${event.id}`);
     }
 
     setIsSaving(false);

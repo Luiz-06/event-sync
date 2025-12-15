@@ -1,4 +1,4 @@
-import { Calendar, MapPin, QrCode, CheckCircle2, Clock, XCircle, Download } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle2, Clock, XCircle, Download } from 'lucide-react'; //
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,6 @@ import jsPDF from "jspdf";
 
 interface TicketCardProps {
   registration: Registration;
-  onClick?: () => void;
 }
 
 const statusConfig: Record<RegistrationStatus, { label: string; className: string; icon: typeof Clock }> = {
@@ -20,7 +19,7 @@ const statusConfig: Record<RegistrationStatus, { label: string; className: strin
   checked_in: { label: 'Check-in', className: 'bg-primary text-primary-foreground', icon: CheckCircle2 },
 };
 
-export function TicketCard({ registration, onClick }: TicketCardProps) {
+export function TicketCard({ registration }: TicketCardProps) {
   const { event } = registration;
   const status = statusConfig[registration.status] || statusConfig.pending; 
   const StatusIcon = status.icon;
@@ -28,49 +27,35 @@ export function TicketCard({ registration, onClick }: TicketCardProps) {
   if (!event) return null;
 
   const startDate = new Date(event.start_date);
-  const isClickable = registration.status === 'approved' || registration.status === 'checked_in';
-  
   const showCertificate = registration.status === 'checked_in' && event.status === 'finished';
 
   const downloadCertificate = (e: React.MouseEvent) => {
     e.stopPropagation();
     const doc = new jsPDF({ orientation: 'landscape' });
-    
+    // Lógica do PDF mantida
     doc.setFillColor(245, 245, 245);
     doc.rect(0, 0, 297, 210, 'F');
     doc.setTextColor(30, 30, 30);
-    
     doc.setFontSize(40);
     doc.text("Certificado de Participação", 148, 60, { align: "center" });
-    
     doc.setFontSize(20);
     doc.text("Certificamos que", 148, 90, { align: "center" });
-    
     doc.setFontSize(32);
     doc.setFont("helvetica", "bold");
     doc.text(registration.user?.full_name || "Participante", 148, 110, { align: "center" });
-    
     doc.setFont("helvetica", "normal");
     doc.setFontSize(18);
     doc.text(`Participou com êxito do evento: ${event.title}`, 148, 135, { align: "center" });
     doc.text(`Realizado em: ${format(startDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`, 148, 145, { align: "center" });
-    
     doc.setDrawColor(200, 200, 200);
     doc.line(70, 170, 227, 170);
     doc.setFontSize(12);
     doc.text("Assinatura do Organizador", 148, 180, { align: "center" });
-
     doc.save(`certificado_${event.id}.pdf`);
   };
 
   return (
-    <Card 
-      className={cn(
-        "overflow-hidden shadow-card transition-all duration-300 animate-slide-up",
-        isClickable && "cursor-pointer hover:shadow-card-hover hover:scale-[1.02]"
-      )}
-      onClick={isClickable ? onClick : undefined}
-    >
+    <Card className="overflow-hidden shadow-card animate-slide-up">
       <div className="flex">
         <div className="relative w-28 md:w-36 shrink-0 bg-muted">
           {event.cover_image_url ? (
@@ -81,11 +66,6 @@ export function TicketCard({ registration, onClick }: TicketCardProps) {
             />
           ) : (
             <div className="w-full h-full gradient-hero" />
-          )}
-          {isClickable && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <QrCode className="h-8 w-8 text-white" />
-            </div>
           )}
         </div>
 
@@ -108,7 +88,6 @@ export function TicketCard({ registration, onClick }: TicketCardProps) {
                   {format(startDate, "d MMM, HH:mm", { locale: ptBR })}
                 </span>
               </div>
-
               {event.location_name && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5 text-primary" />
@@ -118,14 +97,10 @@ export function TicketCard({ registration, onClick }: TicketCardProps) {
             </div>
           </div>
 
-          {showCertificate ? (
+          {showCertificate && (
             <Button size="sm" variant="outline" className="w-full mt-2 gap-2 text-xs h-8" onClick={downloadCertificate}>
               <Download className="h-3 w-3" /> Certificado
             </Button>
-          ) : isClickable && (
-            <p className="text-xs text-primary font-medium mt-2">
-              Toque para ver QR Code
-            </p>
           )}
         </CardContent>
       </div>

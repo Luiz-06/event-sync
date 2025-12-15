@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { ArrowLeft, Check, X, QrCode, Loader2, Download, Trash2, Edit2 } from 'lucide-react';
+import { ArrowLeft, Check, X, Loader2, Download, Trash2, Edit2, UserCheck } from 'lucide-react'; //
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -22,31 +20,10 @@ export default function ManageEvent() {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [scannerActive, setScannerActive] = useState(false);
-  const [qrInput, setQrInput] = useState('');
 
   useEffect(() => {
     if (id && user) fetchData();
   }, [id, user]);
-
-  useEffect(() => {
-    let scanner: InstanceType<typeof Html5QrcodeScanner> | null = null;
-    if (scannerActive) {
-      scanner = new Html5QrcodeScanner(
-        "reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false
-      );
-      scanner.render(onScanSuccess, (error: unknown) => console.warn(error));
-    }
-    return () => { 
-      if(scanner) scanner.clear().catch(console.error); 
-    };
-  }, [scannerActive]);
-
-  const onScanSuccess = (decodedText: string) => {
-    setQrInput(decodedText);
-    setScannerActive(false);
-    handleCheckin(decodedText);
-  };
 
   const fetchData = async () => {
     if(!id) return;
@@ -57,30 +34,13 @@ export default function ManageEvent() {
   };
 
   const updateStatus = async (regId: string, newStatus: 'pending' | 'approved' | 'rejected' | 'checked_in') => {
-    await supabase.from('registrations').update({ status: newStatus }).eq('id', regId);
-    toast({ title: 'Status atualizado!' });
-    fetchData();
-  };
-
-  const handleCheckin = async (hash: string) => {
-    const { data } = await supabase.from('registrations').select('*').eq('qr_code_hash', hash).eq('event_id', id).single();
+    const { error } = await supabase.from('registrations').update({ status: newStatus }).eq('id', regId);
     
-    if(data) {
-      if(data.status === 'approved' || data.status === 'checked_in') {
-        const { error } = await supabase.from('registrations').update({ 
-          status: 'checked_in',
-          checkin_count: (data.checkin_count || 0) + 1 
-        }).eq('id', data.id);
-        
-        if (!error) toast({ title: `Check-in realizado com sucesso!` });
-        else toast({ title: 'Erro no check-in', variant: 'destructive' });
-        
-        fetchData();
-      } else {
-        toast({ title: 'Ingresso não aprovado ou pendente', variant: 'destructive' });
-      }
+    if (!error) {
+      toast({ title: newStatus === 'checked_in' ? 'Check-in realizado!' : 'Status atualizado!' });
+      fetchData();
     } else {
-      toast({ title: 'Código inválido para este evento', variant: 'destructive' });
+      toast({ title: 'Erro ao atualizar', variant: 'destructive' });
     }
   };
 
@@ -98,10 +58,12 @@ export default function ManageEvent() {
   };
 
   const exportCSV = () => {
-    const headers = ['Nome', 'Status'];
+    const headers = ['Nome', 'Status', 'Email'];
     const rows = registrations.map(reg => [
       reg.user?.full_name || '',
-      reg.status
+      reg.status,
+      // @ts-ignore - email pode não estar tipado no join mas vem do banco se as policies permitirem
+      reg.user?.email || '' 
     ]);
     
     const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -117,15 +79,11 @@ export default function ManageEvent() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'approved':
-      case 'checked_in':
-        return <Badge className="bg-success text-success-foreground">Confirmado</Badge>;
-      case 'pending':
-        return <Badge className="bg-warning text-warning-foreground">Pendente</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive">Recusado</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+      case 'approved': return <Badge className="bg-success text-success-foreground">Aprovado</Badge>;
+      case 'checked_in': return <Badge className="bg-primary text-primary-foreground">Presente</Badge>;
+      case 'pending': return <Badge className="bg-warning text-warning-foreground">Pendente</Badge>;
+      case 'rejected': return <Badge variant="destructive">Recusado</Badge>;
+      default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -135,6 +93,7 @@ export default function ManageEvent() {
   return (
     <AppLayout>
       <div className="container px-4 py-6 pb-24">
+        {/* Cabeçalho igual ao anterior */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -156,15 +115,11 @@ export default function ManageEvent() {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. Todas as inscrições serão removidas.
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={deleteEvent} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Excluir
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={deleteEvent} className="bg-destructive text-destructive-foreground">Excluir</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -177,19 +132,46 @@ export default function ManageEvent() {
           </div>
         )}
 
-        <Tabs defaultValue="pending">
+        <Tabs defaultValue="list">
           <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="pending">Pendentes</TabsTrigger>
-            <TabsTrigger value="checkin">Check-in</TabsTrigger>
+            <TabsTrigger value="list">Participantes</TabsTrigger>
+            <TabsTrigger value="pending">Solicitações Pendentes</TabsTrigger>
           </TabsList>
 
+          {/* ABA 1: LISTA GERAL E CHECK-IN MANUAL */}
+          <TabsContent value="list" className="space-y-3">
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-4">Gerenciar Presença</h3>
+              {registrations.filter(r => ['approved', 'checked_in'].includes(r.status)).length === 0 && (
+                <p className="text-center text-muted-foreground py-4">Nenhum participante aprovado ainda.</p>
+              )}
+              
+              {registrations.filter(r => ['approved', 'checked_in'].includes(r.status)).map(reg => (
+                <Card key={reg.id}>
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{reg.user?.full_name}</p>
+                      {getStatusBadge(reg.status)}
+                    </div>
+                    {reg.status !== 'checked_in' && (
+                      <Button size="sm" onClick={() => updateStatus(reg.id, 'checked_in')}>
+                        <UserCheck className="mr-2 h-4 w-4" /> Check-in
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* ABA 2: PENDENTES (Aprovação) */}
           <TabsContent value="pending" className="space-y-3">
             {registrations.filter(r => r.status === 'pending').map(reg => (
               <Card key={reg.id}>
                 <CardContent className="p-4 flex items-center justify-between">
                   <div>
                     <p className="font-medium">{reg.user?.full_name}</p>
-                    {getStatusBadge(reg.status)}
+                    <Badge variant="outline" className="text-warning border-warning">Pendente</Badge>
                   </div>
                   <div className="flex gap-2">
                     <Button size="icon" variant="outline" className="border-success text-success hover:bg-success/10" onClick={() => updateStatus(reg.id, 'approved')}>
@@ -203,39 +185,8 @@ export default function ManageEvent() {
               </Card>
             ))}
             {registrations.filter(r => r.status === 'pending').length === 0 && (
-              <p className="text-center text-muted-foreground py-8">Nenhuma pendência.</p>
+              <p className="text-center text-muted-foreground py-8">Nenhuma solicitação pendente.</p>
             )}
-          </TabsContent>
-
-          <TabsContent value="checkin" className="space-y-4">
-            <Card>
-              <CardHeader><CardTitle>Scanner</CardTitle></CardHeader>
-              <CardContent>
-                {scannerActive ? (
-                  <div id="reader" className="w-full overflow-hidden rounded-lg"></div>
-                ) : (
-                  <Button className="w-full" onClick={() => setScannerActive(true)}>
-                    <QrCode className="mr-2 h-4 w-4" /> Abrir Câmera
-                  </Button>
-                )}
-                <div className="flex gap-2 mt-4">
-                  <Input placeholder="Código manual" value={qrInput} onChange={e => setQrInput(e.target.value)} />
-                  <Button onClick={() => handleCheckin(qrInput)}>OK</Button>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <div className="space-y-2">
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Confirmados</h3>
-              {registrations.filter(r => ['approved', 'checked_in'].includes(r.status)).map(reg => (
-                <div key={reg.id} className="flex justify-between p-3 bg-muted rounded-lg items-center">
-                  <span className="font-medium">{reg.user?.full_name}</span>
-                  <Badge variant={reg.status === 'checked_in' ? 'default' : 'secondary'}>
-                    {reg.status === 'checked_in' ? 'Presente' : 'Ausente'}
-                  </Badge>
-                </div>
-              ))}
-            </div>
           </TabsContent>
         </Tabs>
       </div>
